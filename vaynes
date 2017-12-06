@@ -1,0 +1,817 @@
+if myHero.charName ~= "Vayne" then return end
+require 'MapPositionGOS'
+require 'DamageLib'
+require 'Eternal Prediction'
+--
+local Q = {delay = 0,range = 300,icon = "https://vignette4.wikia.nocookie.net/leagueoflegends/images/8/8d/Tumble.png"}
+local W = {icon = "https://vignette3.wikia.nocookie.net/leagueoflegends/images/1/12/Silver_Bolts.png"}
+local E = {delay=0.25,range=710,push=470,icon = "https://vignette2.wikia.nocookie.net/leagueoflegends/images/6/66/Condemn.png"}
+local R = {icon = "https://vignette1.wikia.nocookie.net/leagueoflegends/images/b/b4/Final_Hour.png"}
+--
+local YoumuusIcon="https://yt3.ggpht.com/-WvtH_wlnxlQ/AAAAAAAAAAI/AAAAAAAAAAA/SBW1KChVwyA/s900-c-k-no-mo-rj-c0xffffff/photo.jpg"
+local BotrkIcon="http://gamelienminh.com/wp-content/uploads/2014/12/guom-vo-danh1.jpg"
+local MercIcon="http://ddragon.leagueoflegends.com/cdn/7.7.1/img/item/3139.png"
+local QSSIcon="https://vignette4.wikia.nocookie.net/leagueoflegends/images/f/f9/Quicksilver_Sash_item.png"
+local BCIcon="https://vignette1.wikia.nocookie.net/leagueoflegends/images/4/44/Bilgewater_Cutlass_item.png"
+local myRange=550
+-- Menu
+local VayneMenu = MenuElement({type = MENU, id = "VayneMenu", name = "Kleon's Vayne", leftIcon = "http://orig04.deviantart.net/01b0/f/2016/242/3/7/league_of_legends____soulstealer_vayne_avatar_by_gwannah-dafupm9.png"})
+--SubMenus
+VayneMenu:MenuElement({type = MENU, id = "Combo", name = "Combo", leftIcon = "http://news.cdn.leagueoflegends.com/public/images/articles/2015/march_2015/upn/orbitallaser.jpg"})
+VayneMenu.Combo:MenuElement({type = PARAM, id = "Q", name = "Use Tumble", value=true, leftIcon = Q.icon})--
+VayneMenu.Combo:MenuElement({type = PARAM, id = "E", name = "Use Condemn", value=true, leftIcon = E.icon})
+VayneMenu.Combo:MenuElement({type = PARAM, id = "R", name = "Use Ultimate", value=true, leftIcon = R.icon})
+--
+VayneMenu:MenuElement({type = MENU, id = "Harass", name = "Harass", leftIcon = "http://i.imgur.com/RmI1avo.png"})
+VayneMenu.Harass:MenuElement({type = PARAM, id = "Q", name = "Use Tumble", value=true, leftIcon = Q.icon})
+VayneMenu.Harass:MenuElement({type = PARAM, id = "E", name = "Use Condemn", value=true, leftIcon = E.icon})
+--
+VayneMenu:MenuElement({type = MENU, id = "KillSecure", name = "KillSecure", leftIcon = "https://s-media-cache-ak0.pinimg.com/736x/94/38/b9/9438b9e1a791a6356e6ef70a49abb850.jpg"})
+--VayneMenu.KillSecure:MenuElement({type = PARAM, id = "Q", name = "Use Tumble", value=true, leftIcon = Q.icon})
+VayneMenu.KillSecure:MenuElement({type = PARAM, id = "E", name = "Use Condemn", value=false, leftIcon = E.icon})
+VayneMenu.KillSecure:MenuElement({type = PARAM, id = "KSDamage", name = "KSDamage % To Calculate With", value=95,min=10,max=100})
+--
+VayneMenu:MenuElement({type = MENU, id = "ASS", name = "Auto-Stun Standalone", leftIcon = "http://roleplayinfo.yolasite.com/resources/GravityWellI%20bioshock.png"})
+VayneMenu.ASS:MenuElement({type = PARAM, id = "onoff", name = "Use A.S.S", value=true})--
+VayneMenu.ASS:MenuElement({type = MENU, id = "Settings", name = "Mode BlackList"})
+VayneMenu.ASS.Settings:MenuElement({type = SPACE, id = "distext", name = "Disable A.S.S While OW Mode is:"})--
+local CurrOWModes={}
+DelayAction(function() if _G.SDK then
+	CurrOWModes={"COMBO","HARASS","LANECLEAR","JUNGLECLEAR","LASTHIT","FLEE"}
+elseif EOW then
+	CurrOWModes={"COMBO","HARASS","LASTHIT","LANECLEAR"}
+else print("ERROR:NO SUPPORTED ORBWALKERS ARE LOADED") end
+for k,v in pairs(CurrOWModes) do
+	VayneMenu.ASS.Settings:MenuElement({type = PARAM, id = v, name = v,value=false})--
+end end,2)
+for i=1,Game.HeroCount() do
+	local hero=Game.Hero(i)
+	if hero.isEnemy then
+		VayneMenu.ASS:MenuElement({type = PARAM, id = hero.charName, name = "Auto-Stun: "..hero.charName, value=true})--
+	end
+end
+--
+VayneMenu:MenuElement({type = MENU, id = "Logics", name = "Logics", leftIcon = "http://sr.photos1.fotosearch.com/bthumb/CSP/CSP771/k7718991.jpg"})
+VayneMenu.Logics:MenuElement({type = MENU, id = "Q", name = "Tumble ", leftIcon = Q.icon})
+VayneMenu.Logics.Q:MenuElement({type = PARAM, id = "Reset", name = "Focus AA Reseting", value=true})--
+--VayneMenu.Logics.Q:MenuElement({type = PARAM, id = "Wall", name = "Tumble To Wall When Possible in 1v1", value=true})
+--VayneMenu.Logics.Q:MenuElement({type = PARAM, id = "QE", name = "QE When Possible", value=true})
+VayneMenu.Logics.Q:MenuElement({type = PARAM, id = "NotIntoTarget", name = "Don't Tumble into Target", value=false})--
+VayneMenu.Logics.Q:MenuElement({type = PARAM, id = "NotIntoEnemyTeam", name = "Don't Go Brainless [?]",tooltip="Don't Tumble into Enemies[Works with Logics]", value=true})--
+VayneMenu.Logics.Q:MenuElement({type = PARAM, id = "RQ", name = "Auto Tumble after Ultimate", value=true})--
+
+VayneMenu.Logics:MenuElement({type = MENU, id = "W", name = "Silver Bolts ", leftIcon = W.icon})
+VayneMenu.Logics.W:MenuElement({type = PARAM, id = "Focus", name = "Focus Enemies With 2 Stacks", value=true})--
+
+VayneMenu.Logics:MenuElement({type = MENU, id = "E", name = "Condemn ", leftIcon = E.icon})
+VayneMenu.Logics.E:MenuElement({type = PARAM, id = "Stun", name = "Stun Target", value=true})--
+VayneMenu.Logics.E:MenuElement({type = PARAM, id = "PushAway", name = "Push Away Enemies From My Ass", value=true})--
+VayneMenu.Logics.E:MenuElement({type = PARAM, id = "EPrediction", name = "Use Prediction for Stun (Beta)", value=true})--
+VayneMenu.Logics.E:MenuElement({type = PARAM, id = "StunChance", name = "Stun Chance(%)", value=15,min=1,max=100})--
+VayneMenu.Logics.E:MenuElement({type = PARAM, id = "EPushDistance", name = "E Push Distance", value=430,min=100,max=470,callback=function(value) E.push=value end})
+--VayneMenu.Logics.E:MenuElement({type = PARAM, id = "EFlash", name = "Condemn-Flash Key", key=string.byte("Y")})
+
+VayneMenu.Logics:MenuElement({type = MENU, id = "R", name = "Ultimate ", leftIcon = R.icon})
+VayneMenu.Logics.R:MenuElement({type = PARAM, id = "Smart", name = "Mode", drop={"Smart"}})--
+VayneMenu.Logics.R:MenuElement({type = PARAM, id = "InvTime", name = "Use Invisibility for", value=0.6,min=0.1,max=0.9,step=0.1})--
+--
+VayneMenu:MenuElement({type = MENU, id = "Drawings", name = "Drawings", leftIcon = "http://photoservice.gamesao.vn/Resources/Upload/Images/Editor/33/Li%C3%AAn%20Minh%20Huy%E1%BB%81n%20Tho%E1%BA%A1i/C%E1%BA%ADp%20nh%E1%BA%ADt%20tin%20t%E1%BB%A9c%20ng%C3%A0y%2017%20th%C3%A1ng%206%20n%C4%83m%202015/15.1.png"})
+VayneMenu.Drawings:MenuElement({type = PARAM, id = "E", name = "Draw E-Push Rectangle", value=false})--
+--
+VayneMenu:MenuElement({type = MENU, id = "Activator", name = "Activator", leftIcon = "http://www.freeiconspng.com/uploads/sword-icon-11.png"})--
+VayneMenu.Activator:MenuElement({type = PARAM, id = "Botrk", name = "Use BotRK", value=true,leftIcon=BotrkIcon})--
+VayneMenu.Activator:MenuElement({type = PARAM, id = "BC", name = "Use BC", value=true,leftIcon=BCIcon})--
+VayneMenu.Activator:MenuElement({type = PARAM, id = "Merc", name = "Use Merculiar Scimitar", value=true,leftIcon=MercIcon})--
+VayneMenu.Activator:MenuElement({type = PARAM, id = "QSS", name = "Use QSS", value=true,leftIcon=QSSIcon})--
+VayneMenu.Activator:MenuElement({type = PARAM, id = "Youmuus", name = "Use Youmuu's", value=true,leftIcon=YoumuusIcon})--
+--
+local target=nil
+local Items={Botrk=3153,Merc=3139,QSS=3140,BC=3144,Youmuus=3142}
+local ItemSlots={ITEM_1,ITEM_2,ITEM_3,ITEM_4,ITEM_5,ITEM_6,ITEM_7}
+local ItemHotKeys={HK_ITEM_1,HK_ITEM_2,HK_ITEM_3,HK_ITEM_4,HK_ITEM_5,HK_ITEM_6,HK_ITEM_7}
+--ORBW
+local function GetTarget()
+	if _G.SDK then
+		return _G.SDK.Orbwalker:GetTarget() or _G.SDK.TargetSelector:GetTarget(850,_G.SDK.DAMAGE_TYPE_PHYSICAL)
+	elseif EOW then
+		return EOW:GetTarget(850, EOW.priority_dec, Vector(myHero.pos))
+	else print("ERROR:NO SUPPORTED ORBWALKERS ARE LOADED") end
+end
+
+local function GetOrbwalkerMode()
+	local ICOWNames={"COMBO","HARASS","LANECLEAR","JUNGLECLEAR","LASTHIT","FLEE"}
+	local EternalOWNames={"COMBO","HARASS","LASTHIT","LANECLEAR"}
+	if _G.SDK then
+		local ICOWModes={_G.SDK.ORBWALKER_MODE_COMBO,_G.SDK.ORBWALKER_MODE_HARASS,_G.SDK.ORBWALKER_MODE_LANECLEAR,_G.SDK.ORBWALKER_MODE_JUNGLECLEAR,_G.SDK.ORBWALKER_MODE_LASTHIT,_G.SDK.ORBWALKER_MODE_FLEE}
+		if _G.SDK.Orbwalker.Modes[_G.SDK.ORBWALKER_MODE_NONE] then
+			return "NONE"
+		else
+			for k,v in pairs(ICOWModes) do
+				if _G.SDK.Orbwalker.Modes[v] then
+					return ICOWNames[k]
+				end
+			end
+		end
+	elseif EOW then
+		if EOW:Mode()==0 then
+			return "NONE"
+		else
+			return EternalOWNames[EOW:Mode()]
+		end
+	else print("ERROR:NO SUPPORTED ORBWALKERS ARE LOADED") end
+	return "NONE"
+end
+--
+local function GetItemHotKey(item)
+	for i=1,7 do
+		if item==ItemSlots[i] then
+			return ItemHotKeys[i]
+		end
+	end
+end
+
+local function GetItemSlot(itemID)
+	local itemm
+	for i=1,7 do
+		local slot=ItemSlots[i]
+		local item=myHero:GetItemData(slot)
+		if item.itemID==itemID and myHero:GetSpellData(slot).currentCd==0 then
+			itemm=slot
+			break
+		end
+	end
+	return itemm
+end
+
+local function UnderCC()
+	local ccTable={5,11,24,29}
+	for i = 1, myHero.buffCount do
+		local buff = myHero:GetBuff(i)
+		if buff.duration > 0 and buff then
+			for t=1,#ccTable do
+				if buff.type==ccTable[t] then
+					return true
+				end
+			end
+		end
+	end
+	return false	
+end
+
+local function Normalized2(what,x,to)
+	local x=x or 1
+	local asd=(what-to)
+	asd=Vector(0,0,0)+asd
+	asd=asd:Normalized()
+	asd=asd*x
+	asd=to+asd
+	return asd
+end
+
+local function Normalized3(what,x,to,at,dir)
+	local x=x or 1
+	local at=at or to
+	local asd=(what-to)
+	if dir==1 then
+		asd=asd:Perpendicular()
+	elseif dir==2 then
+		asd=asd:Perpendicular2()
+	end
+	asd=Vector(0,0,0)+asd
+	asd=asd:Normalized()
+	asd=asd*x
+	asd=at+asd
+	return asd
+end
+
+local function IsWallBetween(to,from)
+	local from=from or Vector(myHero.pos)
+	local to=to or Vector(0,0,0)
+	local leng=from:DistanceTo(to)
+	for i=10,leng,5 do
+		if MapPosition:inWall(Normalized2(to,i,from)) then
+			return Normalized2(to,i,from)
+		end
+	end
+	return to
+end
+
+local function GetBuffIndexByName(unit,name)
+	for i=1,unit.buffCount do
+		local buff=unit:GetBuff(i)
+		if buff.name==name and buff.duration>0 then
+			return i
+		end
+	end
+end
+
+local function HealthToPercent(who)
+	return (who.health/who.maxHealth)*100
+end
+
+local function GetAlliesAround(pos,range,lh)
+	local lh=lh or false
+	if type(lh)~="number" and lh~=false then error("[GetAlliesAround] number expected!") return end
+	local range=range or myRange
+	local pos=pos or Vector(myHero.pos)
+	local enem=0
+	for i=1,Game.HeroCount() do
+		local hero=Game.Hero(i)
+		if not hero.isEnemy and not hero.dead and hero~=myHero and hero.visible then
+			if pos:DistanceTo(Vector(hero.pos))<=range then
+				if lh then
+					if HealthToPercent(hero)<=lh then
+						enem=enem+1
+					end
+				else
+					enem=enem+1
+				end
+			end
+		end
+	end
+	return enem
+end
+
+local function GetWStacks(who)
+	if who:GetBuff(GetBuffIndexByName(who,"VayneSilveredDebuff")).duration>0 then
+		return who:GetBuff(GetBuffIndexByName(who,"VayneSilveredDebuff")).count
+	else 
+		return 0
+	end
+end
+
+function round(num, numDecimalPlaces)
+  local mult = 10^(numDecimalPlaces or 0)
+  return math.floor(num * mult + 0.5) / mult
+end
+
+local function GetInvTime()
+	return myHero:GetBuff(GetBuffIndexByName(myHero,"vaynetumblefade")).duration
+end
+
+local function GetDamageTo(who,s)
+	local who=who or target
+	local s=s or 2 
+	local aa=round(s/myHero.attackSpeed)
+	local wProc=round((aa+GetWStacks(who))/3)
+	local aaDamage=(getdmg("AA",who)*1.2)*aa
+	local wDamage=getdmg("W",who)*wProc
+	return aaDamage+wDamage
+end
+
+local function DrawLine3D(x,y,z,a,b,c,width,col)
+  local p1 = Vector(x,y,z):To2D()
+  local p2 = Vector(a,b,c):To2D()
+  Draw.Line(p1.x, p1.y, p2.x, p2.y, width, col)
+end
+
+local function DrawRectangleOutline(a, b, width, col)--
+  local startPos = a
+  local endPos = b
+  local c1 = startPos+Vector(Vector(endPos)-startPos):Perpendicular():Normalized()*width
+  local c2 = startPos+Vector(Vector(endPos)-startPos):Perpendicular2():Normalized()*width
+  local c3 = endPos+Vector(Vector(startPos)-endPos):Perpendicular():Normalized()*width
+  local c4 = endPos+Vector(Vector(startPos)-endPos):Perpendicular2():Normalized()*width
+  DrawLine3D(c1.x,c1.y,c1.z,c2.x,c2.y,c2.z,2,col)
+  DrawLine3D(c2.x,c2.y,c2.z,c3.x,c3.y,c3.z,2,col)
+  DrawLine3D(c3.x,c3.y,c3.z,c4.x,c4.y,c4.z,2,col)
+  DrawLine3D(c1.x,c1.y,c1.z,c4.x,c4.y,c4.z,2,col)
+end
+
+local function CanUseSpell(who,spell,pmana)
+	local pmana=pmana or 0
+	local who=who or myHero
+	return who:GetSpellData(spell).currentCd == 0 and who:GetSpellData(spell).level > 0 and who:GetSpellData(spell).mana+pmana <= who.mana
+end
+
+local function QNasusDamage(who) return who:GetBuff(GetBuffIndexByName(who,"NasusQStacks")).stacks + (20*who:GetSpellData(_Q).level) + who.totalDamage end
+
+local function GetDamageFrom(who,s)
+	local who=who or target
+	local s=s or 2 
+	local aa=round(s/who.attackSpeed)+1
+	local aaDamage=(getdmg("AA",myHero,who)*1.2)*aa
+	local qDamage
+	if who.charName=="Nasus" then
+		qDamage=QNasusDamage(who)
+	else
+		qDamage=getdmg("Q",myHero,who)
+	end
+	local wDamage=getdmg("W",myHero,who)
+	local eDamage=getdmg("E",myHero,who)
+	local rDamage=getdmg("R",myHero,who)
+	local total=aaDamage
+	if CanUseSpell(who,_Q) then
+		total=total+qDamage
+	end
+	if CanUseSpell(who,_W) then
+		total=total+wDamage
+	end
+	if CanUseSpell(who,_E) then
+		total=total+eDamage
+	end
+	if CanUseSpell(who,_R) then
+		total=total+rDamage
+	end
+	return total
+end
+
+local function GetEnemiesAround(pos,range,ka)
+	local ka=ka or false
+	local range=range or myRange
+	local pos=pos or Vector(myHero.pos)
+	local enem=0
+	for i=1,Game.HeroCount() do
+		local hero=Game.Hero(i)
+		if hero.isEnemy and not hero.dead and hero.visible then
+			if pos:DistanceTo(Vector(hero.pos))<=range then
+				if ka then
+					if hero.health<=GetDamageTo(hero,3) or GetDamageFrom(hero,3)<=myHero.health*0.3 then
+						enem=enem+1
+					end
+				else
+					enem=enem+1
+				end
+			end
+		end
+	end
+	return enem
+end
+
+local function ShallUlt(pos)
+	local pos=pos or Vector(myHero.pos)
+	local time=({8,10,12})[myHero:GetSpellData(_R).level] or 8
+	local heroes={}
+	for i=1,Game.HeroCount() do
+		local hero=Game.Hero(i)
+		if hero.isEnemy and not hero.dead and hero.visible and Vector(hero.pos):DistanceTo(pos)<=800 and hero.health>GetDamageTo(hero,(time/2)-1) then
+			table.insert(heroes,Game.Hero(i))
+		end
+	end
+	local totaldamage=0
+	if #heroes>0 then
+		for k,hero in pairs(heroes) do
+			totaldamage=totaldamage+GetDamageFrom(hero,time/2)
+		end
+		if totaldamage>=myHero.health*0.5 then
+			return true
+		end
+	end
+	return false
+end
+
+local function GetQEndPos(pos)
+	local pos=pos or mousePos
+	return IsWallBetween(Normalized2(pos,Q.range,Vector(myHero.pos)))
+end
+
+local function GetEEndPos(pos)
+	local pos=pos or Vector(target.pos)
+	return IsWallBetween(Normalized2(pos,Vector(myHero.pos):DistanceTo(pos)+E.push,Vector(myHero.pos)),pos)
+end
+
+local function IsUnderEnemyTurret(pos)
+	local turrets={}
+	for i=1,Game.TurretCount() do
+		local turret=Game.Turret(i)
+		if turret.team~=myHero.team then
+			if not turret.dead then
+				table.insert(turrets,turret)
+			end
+		end 
+	end
+	for k,v in pairs(turrets) do
+		if pos:DistanceTo(Vector(v.pos))<=915 then
+			return true
+		end
+	end
+	return false
+end
+
+local function IsUnderAllyTurret(pos)
+	local turrets={}
+	for i=1,Game.TurretCount() do
+		local turret=Game.Turret(i)
+		if turret.team==myHero.team then
+			if not turret.dead then
+				table.insert(turrets,turret)
+			end
+		end 
+	end
+	for k,v in pairs(turrets) do
+		if pos:DistanceTo(Vector(v.pos))<=915 then
+			return true
+		end
+	end
+	return false
+end
+
+local function IsSafe(pos,noQIntoEnemies)
+	local pos=pos or GetQEndPos(mousePos)
+	local noQIntoEnemies=noQIntoEnemies or VayneMenu.Logics.Q.NotIntoEnemyTeam:Value()
+	if IsUnderEnemyTurret(pos) and not IsUnderEnemyTurret(Vector(myHero.pos)) then
+		return false
+	end
+	local allies=GetAlliesAround(pos,myRange+100)
+	local lhAllies=GetAlliesAround(pos,myRange+100,30)
+	local enemies=GetEnemiesAround(pos,myRange+100)
+	local kaEnemies=GetEnemiesAround(pos,myRange+100,30)
+	if enemies == 1 then
+   		return true
+    end
+    if IsUnderAllyTurret(pos) then
+        allies = allies+2
+    end
+    if myHero:GetBuff(GetBuffIndexByName(myHero,"VayneInquisition")).duration>0 then
+    	allies = allies+1
+    end
+    local defaultCheck = (allies-lhAllies + 1 >= enemies - kaEnemies)
+    local QEnemiesCheck = true
+    if noQIntoEnemies then
+    	local kek=0
+    	for i=1,Game.HeroCount() do
+    		local hero=Game.Hero(i)
+    		if hero.isEnemy and not hero.dead and hero.visible and hero.distance<=1300 then
+    			if pos:DistanceTo(Vector(hero.pos))+50<=hero.range and Vector(myHero.pos):DistanceTo(Vector(hero.pos))+50>=hero.range then
+    				kek=kek+1
+    			end
+    		end
+    	end
+    	if kek>(allies-lhAllies + 1) then
+    		QEnemiesCheck=false
+    	end
+    end
+    return QEnemiesCheck and defaultCheck
+end
+
+local function CastSpell2(spell,pos)
+	if myHero.isChanneling and myHero.activeSpell then
+	else
+	if _G.SDK then
+		_G.SDK.Orbwalker:SetMovement(false)
+		_G.SDK.Orbwalker:SetAttack(false)
+	elseif EOW then
+		EOW:SetMovements(false)
+		EOW:SetAttacks(false)
+	else print("ERROR:NO SUPPORTED ORBWALKERS ARE LOADED") end
+		if spell==HK_Q then
+			--if EOW then
+				for i=1,Game.HeroCount() do
+					local hero=Game.Hero(i)
+					if hero.isEnemy and not hero.dead and not hero.isImmortal and hero.visible then
+						if mousePos:DistanceTo(Vector(hero.pos))<=30 then
+							--print("Eternal OW Detected,Canceling Q")
+							return
+						end
+					end
+				end
+			--end
+			local pos=GetQEndPos(pos)
+			if ShallUlt(pos) and CanUseSpell(myHero,_R,myHero:GetSpellData(_Q).mana) and VayneMenu.Combo.R:Value() and GetOrbwalkerMode()=="COMBO" then
+				Control.CastSpell(HK_R)
+				DelayAction(function()
+					Control.CastSpell(spell,pos)
+				end,0.2)
+			else
+				Control.CastSpell(spell,pos)
+			end
+		elseif spell==HK_R then
+			Control.CastSpell(HK_R)
+			local pos=GetQEndPos(pos)
+			if IsSafe(pos) and CanUseSpell(myHero,_Q) then
+				CastSpell2(HK_Q,pos)
+			end
+		else
+			Control.CastSpell(spell,pos)
+		end
+		if _G.SDK then
+			_G.SDK.Orbwalker:SetMovement(true)
+			_G.SDK.Orbwalker:SetAttack(true)
+		elseif EOW then
+			EOW:SetMovements(true)
+			EOW:SetAttacks(true)
+		else print("ERROR:NO SUPPORTED ORBWALKERS ARE LOADED") end
+	end
+end
+
+local function KillSecure(who)
+	if who then
+		--
+		local damage=0
+		if CanUseSpell(myHero,_E) and who.distance<=E.range-30 and VayneMenu.KillSecure.E:Value() then
+			damage=damage+getdmg("E",who)
+		end
+		if GetWStacks(who)==2 then
+			damage=damage+getdmg("W",who)
+		end
+		--
+		damage=damage*(VayneMenu.KillSecure.KSDamage:Value()/100)
+		--
+		if damage>=who.health and CanUseSpell(myHero,_E) and who.distance<=E.range-30 and VayneMenu.KillSecure.E:Value() then
+			CastSpell2(HK_E,who)
+		end
+	end
+end
+
+local function GetJukePos(who)
+	local target=who or target
+	local x=1000
+	local pos1=GetQEndPos(Normalized3(Vector(target.pos),x,Vector(myHero.pos),Vector(target.pos),1))
+	local pos2=GetQEndPos(Normalized3(Vector(target.pos),x,Vector(myHero.pos),Vector(target.pos),2))
+	local poss={}
+	if pos1:DistanceTo(Vector(myHero.pos))>=200 and pos1:DistanceTo(Vector(target.pos))<=500 then
+		table.insert(poss,pos1)
+	end
+	if pos2:DistanceTo(Vector(myHero.pos))>=200 and pos2:DistanceTo(Vector(target.pos))<=500 then
+		table.insert(poss,pos2)
+	end
+	local closest
+	for k,pos in pairs(poss) do
+		if closest then
+			if pos:DistanceTo(mousePos)<closest:DistanceTo(mousePos) then
+				closest=pos
+			end
+		else
+			closest=pos
+		end
+	end
+	if closest then
+		return closest
+	else return Vector() end
+end
+
+local function CanQ()
+	if GetOrbwalkerMode()=="COMBO" then
+		if VayneMenu.Combo.Q:Value() and Game.CanUseSpell(_Q)==READY then
+			if VayneMenu.Logics.Q.Reset:Value() and target.distance<=570 then
+				return false
+			else return true end
+		end
+	elseif GetOrbwalkerMode()=="HARASS" then
+		if VayneMenu.Harass.Q:Value() and Game.CanUseSpell(_Q)==READY then
+			if VayneMenu.Logics.Q.Reset:Value() and target.distance<=570 then
+				return false
+			else return true end
+		end
+	end
+	return false
+end
+
+local function CanE()
+	if GetOrbwalkerMode()=="COMBO" then
+		if VayneMenu.Combo.E:Value() and Game.CanUseSpell(_E)==READY then
+			return true
+		end
+	elseif GetOrbwalkerMode()=="HARASS" then
+		if VayneMenu.Harass.E:Value() and Game.CanUseSpell(_E)==READY then
+			return true
+		end
+	end
+	return false
+end
+
+local EData={speed=2200,delay=E.delay}
+local EPred=Prediction:SetSpell(EData,TYPE_LINE,false)
+local function CanStun(who)
+	local who=who or target
+	if who.distance<=E.range and CanUseSpell(myHero,_E) then
+		if VayneMenu.Logics.E.EPrediction:Value() then
+			local pred=EPred:GetPrediction(who,Vector(myHero.pos))
+			if pred.hitChance>=(VayneMenu.Logics.E.StunChance:Value()/100) and MapPosition:inWall(GetEEndPos(pred.castPos,Vector(myHero.pos))) then--:DistanceTo(pred.castPos)<=E.push then--if IsWallBetween(Normalized2(pred.castPos,pred.castPos:DistanceTo(Vector(myHero.pos))+E.push,Vector(myHero.pos)),pred.castPos):DistanceTo(pred.castPos)<=E.push-30 then
+				return true
+			end
+		elseif MapPosition:inWall(GetEEndPos(Vector(who.pos),Vector(myHero.pos))) then--:DistanceTo(Vector(who.pos))<=E.push then
+			return true
+		end
+	end
+	return false
+end
+
+function OnTick()
+	target=GetTarget()
+	if not myHero.dead then
+		for i=1,Game.HeroCount() do
+			local hero=Game.Hero(i)
+			if not hero.dead and not hero.isImmortal and hero.visible and hero.isEnemy then
+				KillSecure(hero)
+			end
+		end
+		if Game.CanUseSpell(_E) and VayneMenu.ASS.onoff:Value() then
+			local pass=false
+			local owmode=GetOrbwalkerMode()
+			if VayneMenu.ASS.Settings[owmode] then
+				if not VayneMenu.ASS.Settings[owmode]:Value() then
+					pass=true
+				end
+			elseif owmode=="NONE" then
+				pass=true
+			end
+			if pass then
+				for i=1,Game.HeroCount() do
+					local hero=Game.Hero(i)
+					if hero.isEnemy and hero.distance<=E.range and not hero.dead and hero.visible and not hero.isImmortal then
+						if VayneMenu.ASS[hero.charName] then
+							if VayneMenu.ASS[hero.charName]:Value() then
+								if CanStun(hero) then
+									CastSpell2(HK_E,hero)
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+		if UnderCC() then
+			if VayneMenu.Activator.Merc:Value() then
+				local ItemMerc=GetItemSlot(Items.Merc)
+				if ItemMerc then
+					Control.CastSpell(GetItemHotKey(ItemMerc))
+				end
+			end
+			if VayneMenu.Activator.QSS:Value() then
+				local ItemQSS=GetItemSlot(Items.QSS)
+				if ItemQSS then
+					Control.CastSpell(GetItemHotKey(ItemQSS))
+				end
+			end
+		end
+		if VayneMenu.Logics.W.Focus:Value() then
+			for i=1,Game.HeroCount() do
+				if not Game.Hero(i).dead and Game.Hero(i).isEnemy and Game.Hero(i).visible then
+					if GetWStacks(Game.Hero(i))==2 and target~=Game.Hero(i) then
+						if _G.SDK then
+							_G.SDK.Orbwalker.ForceTarget=Game.Hero(i)
+						elseif EOW then
+							EOW:ForceTarget(Game.Hero(i))
+						else print("ERROR:NO SUPPORTED ORBWALKERS ARE LOADED") end
+						target=Game.Hero(i)
+						break
+					end
+				end
+			end
+		end
+		if GetInvTime()~=0 and GetInvTime()>=(1-VayneMenu.Logics.R.InvTime:Value()) then
+			if _G.SDK then
+				_G.SDK.Orbwalker:SetAttack(false)
+			elseif EOW then
+				EOW:SetAttacks(false)
+			else print("ERROR:NO SUPPORTED ORBWALKERS ARE LOADED") end
+		else
+			if _G.SDK then
+				_G.SDK.Orbwalker:SetAttack(true)
+			elseif EOW then
+				EOW:SetAttacks(true)
+			else print("ERROR:NO SUPPORTED ORBWALKERS ARE LOADED") end
+		end
+		if GetOrbwalkerMode()=="COMBO" and target then
+			if ShallUlt(Vector(myHero.pos)) and CanUseSpell(myHero,_R) and VayneMenu.Combo.R:Value() then
+				CastSpell2(HK_R)
+			end
+			if target.distance<=myRange then
+				if GetInvTime()==0 then--and not _G.SDK.Orbwalker:CanAttack(myHero) then
+					if VayneMenu.Activator.Youmuus:Value() then
+						local ItemYoumuus=GetItemSlot(Items.Youmuus)
+						if ItemYoumuus then
+							Control.CastSpell(GetItemHotKey(ItemYoumuus))
+						end
+					end
+					if VayneMenu.Activator.Botrk:Value() then
+						local ItemBotrk=GetItemSlot(Items.Botrk)
+						if ItemBotrk then
+							CastSpell2(GetItemHotKey(ItemBotrk),target)
+						end
+					end
+					if VayneMenu.Activator.BC:Value() then
+						local ItemBC=GetItemSlot(Items.BC)
+						if ItemBC then
+							ControlastSpell2(GetItemHotKey(ItemBC),target)
+						end
+					end
+ 				end
+ 			end
+			if IsSafe() and GetQEndPos():DistanceTo(Vector(target.pos))<=550 and CanQ() then
+				if GetQEndPos():DistanceTo(Vector(target.pos))<=200 and VayneMenu.Logics.Q.NotIntoTarget:Value() then
+					local qpos=GetJukePos(target)
+					if qpos~=Vector() and IsSafe(qpos) then
+						CastSpell2(HK_Q,qpos)
+					else
+						CastSpell2(HK_Q)
+					end
+				else
+					CastSpell2(HK_Q)
+				end
+			elseif CanE() and CanStun(target) and VayneMenu.Logics.E.Stun:Value() then
+				CastSpell2(HK_E,target)
+			elseif CanE() and VayneMenu.Logics.E.PushAway:Value() then
+				for i=1,Game.HeroCount() do
+					local hero=Game.Hero(i)
+					if hero.isEnemy and not hero.dead and not hero.isImmortal and hero.visible then
+						if hero.distance<=hero.range+100 and hero.range<=300 then
+							CastSpell2(HK_E,target)
+						end
+					end
+				end
+			end
+		elseif GetOrbwalkerMode()=="HARASS" and target and target.type=="AIHeroClient" then
+			if IsSafe() and GetQEndPos():DistanceTo(Vector(target.pos))<=550 and CanQ() then
+				if GetQEndPos():DistanceTo(Vector(target.pos))<=200 and VayneMenu.Logics.Q.NotIntoTarget:Value() then
+					local qpos=GetJukePos(target)
+					if qpos~=Vector() and IsSafe(qpos) then
+						CastSpell2(HK_Q,qpos)
+					else
+						CastSpell2(HK_Q)
+					end
+				else
+					CastSpell2(HK_Q)
+				end
+			elseif CanE() and CanStun(target) then
+				CastSpell2(HK_E,target)
+			elseif CanE() and VayneMenu.Logics.E.PushAway:Value() then
+				for i=1,Game.HeroCount() do
+					local hero=Game.Hero(i)
+					if hero.isEnemy and not hero.dead and not hero.isImmortal and hero.visible then
+						if hero.distance<=hero.range+100 and hero.range<=300 then
+							CastSpell2(HK_E,target)
+						end
+					end
+				end
+			end
+		end
+	end
+	if target then
+		local newtar=GetTarget()
+		if target.distance>=550 or target.dead or target.isImmortal then
+		if _G.SDK then
+			_G.SDK.Orbwalker.ForceTarget=nil
+		elseif EOW then
+			EOW:ForceTarget()
+		else print("ERROR:NO SUPPORTED ORBWALKERS ARE LOADED") end
+		target=newtar
+		end
+	end
+end
+
+function OnDraw()
+	--
+	if CanUseSpell(myHero,_E) and VayneMenu.Drawings.E:Value() then
+		for i=1,Game.HeroCount() do
+			local hero=Game.Hero(i)
+			if not hero.dead and hero.isEnemy and hero.visible then
+				local from=Vector(hero.pos)
+				local to=GetEEndPos(from,Vector(myHero.pos))
+				if CanStun(hero) then
+					DrawRectangleOutline(from, to, 50,Draw.Color(255,0,255,0))
+				else
+					DrawRectangleOutline(from, to, 50,Draw.Color(255,255,0,0))
+				end
+			end
+		end
+	end
+end
+--
+function OnPostAttack()
+	if target then
+		if GetOrbwalkerMode()=="COMBO" then
+			if VayneMenu.Combo.Q:Value() and Game.CanUseSpell(_Q)==READY then
+				if VayneMenu.Logics.Q.Reset:Value() and IsSafe() and GetQEndPos():DistanceTo(Vector(target.pos))<=550 then
+					if GetQEndPos():DistanceTo(Vector(target.pos))<=200 and VayneMenu.Logics.Q.NotIntoTarget:Value() then
+						local qpos=GetJukePos(target)
+						if qpos~=Vector() and IsSafe(qpos) then
+							CastSpell2(HK_Q,qpos)
+						else
+							CastSpell2(HK_Q,mousePos)
+						end
+					else
+						CastSpell2(HK_Q,mousePos)
+					end
+				end
+			end
+		elseif GetOrbwalkerMode()=="HARASS" and target.type=="AIHeroClient" then
+			if VayneMenu.Harass.Q:Value() and Game.CanUseSpell(_Q)==READY then
+				if VayneMenu.Logics.Q.Reset:Value() and IsSafe() and GetQEndPos():DistanceTo(Vector(target.pos))<=550 then
+					if GetQEndPos():DistanceTo(Vector(target.pos))<=200 and VayneMenu.Logics.Q.NotIntoTarget:Value() then
+						local qpos=GetJukePos(target)
+						if qpos~=Vector() and IsSafe(qpos) then
+							CastSpell2(HK_Q,qpos)
+						else
+							CastSpell2(HK_Q,mousePos)
+						end
+					else
+						CastSpell2(HK_Q,mousePos)
+					end
+				end
+			end
+		end
+	end
+end
+--
+DelayAction(function()
+	if _G.SDK then
+		_G.SDK.Orbwalker:OnPostAttack(function()OnPostAttack()end)
+	elseif EOW then
+		EOW:AddCallback(EOW.AfterAttack, function()OnPostAttack()end)
+	else print("ERROR:NO SUPPORTED ORBWALKERS ARE LOADED") end
+end,2)
+--
+--
+print("Kleon's Vayne | Version 2.04 Loaded!")
